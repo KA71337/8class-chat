@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-8">
 <title>8Ч Класс — Мини мессенджер</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);height:100vh;display:flex;justify-content:center;align-items:center;}
 .auth-screen{background:white;padding:40px;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.3);text-align:center;display:flex;flex-direction:column;gap:16px;}
@@ -19,7 +19,7 @@ body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(135d
 .category-item{padding:6px 8px;color:#555;font-size:14px;cursor:pointer;transition:0.15s;}
 .category-item:hover{background:rgba(102,126,234,0.08);border-radius:6px;}
 .chat-panel{flex:1;display:flex;flex-direction:column;}
-.chat-header{height:60px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid #ddd;font-weight:700;justify-content:space-between;}
+.chat-header{height:60px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid #ddd;font-weight:700;justify-content:space-between;position:relative;}
 .messages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:8px;}
 .msg{max-width:70%;padding:10px 14px;border-radius:12px;background:#eef2ff;align-self:flex-start;opacity:0;animation:fadeIn 0.3s forwards;}
 .msg.me{align-self:flex-end;background:linear-gradient(90deg,#667eea,#764ba2);color:white;}
@@ -46,7 +46,7 @@ body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(135d
 </div>
 
 <div class="app" id="app">
-  <div class="users-panel" id="usersPanel">
+  <div class="users-panel">
     <button class="create-group-btn" id="createGroupBtn">Создать группу</button>
     <div class="category">Группы</div>
     <div class="category-item" id="generalGroup">Общий чат</div>
@@ -55,7 +55,7 @@ body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(135d
     <div class="admin-panel" id="adminPanel"></div>
   </div>
   <div class="chat-panel">
-    <div class="chat-header" id="chatHeader">
+    <div class="chat-header">
       <span id="chatTitle">Выберите пользователя или группу</span>
       <button class="admin-btn" id="writeAdminBtn">Написать админу</button>
       <button class="admin-btn" id="viewChatsBtn" style="display:none;">Посмотреть чаты</button>
@@ -68,16 +68,16 @@ body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(135d
   </div>
 </div>
 
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-const socket = io('https://chat-server-patient-surf-931.fly.dev');
+const LS_USERS = 'chat_users';
+const LS_MSGS = 'chat_messages';
+const LS_CURRENT = 'chat_current';
 
-let currentUser = null;
+let users = JSON.parse(localStorage.getItem(LS_USERS)) || [];
+let messages = JSON.parse(localStorage.getItem(LS_MSGS)) || [];
+let currentUser = localStorage.getItem(LS_CURRENT) || null;
 let selectedChat = 'Общий чат';
-let users = [];
-let messages = [];
 
-// HTML элементы
 const authScreen = document.getElementById('authScreen');
 const appScreen = document.getElementById('app');
 const nameInput = document.getElementById('nameInput');
@@ -92,62 +92,44 @@ const writeAdminBtn = document.getElementById('writeAdminBtn');
 const viewChatsBtn = document.getElementById('viewChatsBtn');
 const adminPanel = document.getElementById('adminPanel');
 
-// Логин
-loginBtn.addEventListener('click', ()=>{
+function saveAll(){
+  localStorage.setItem(LS_USERS, JSON.stringify(users));
+  localStorage.setItem(LS_MSGS, JSON.stringify(messages));
+  localStorage.setItem(LS_CURRENT, currentUser);
+}
+
+function login(){
   const name = nameInput.value.trim();
   if(!name){alert('Введите имя!'); return;}
-  socket.emit('login', name, (res)=>{
-    if(res.success){
-      currentUser = name;
-      authScreen.style.display='none';
-      appScreen.style.display='flex';
-      if(currentUser==='KA7'){ viewChatsBtn.style.display='inline-block'; renderAdminPanel();}
-      else writeAdminBtn.style.display='inline-block';
-    } else alert(res.message);
-  });
-});
+  if(users.includes(name)){alert('Имя занято'); return;}
+  users.push(name);
+  currentUser = name;
+  saveAll();
+  showChat();
+}
 
-// Слушаем Enter
-document.addEventListener('keydown', e=>{
-  if(e.key==='Enter'){
-    if(authScreen.style.display==='flex') loginBtn.click();
-    else sendBtn.click();
-  }
-});
-
-// Создать группу
-createGroupBtn.addEventListener('click', ()=>alert('Еще в разработке'));
-
-// Написать админу
-writeAdminBtn.addEventListener('click', ()=>selectChat('KA7'));
-
-// Просмотр чатов админом
-viewChatsBtn.addEventListener('click', ()=>{
-  adminPanel.style.display = adminPanel.style.display==='flex' ? 'none':'flex';
-});
-
-// Отправка сообщения
-sendBtn.addEventListener('click', ()=>{
-  const text = messageInput.value.trim();
-  if(!text) return;
-  const to = selectedChat==='Общий чат'?'ALL':selectedChat;
-  socket.emit('sendMessage',{from:currentUser,to,text,time:Date.now()});
-  messageInput.value='';
-});
-
-// Получаем список пользователей
-socket.on('users', list=>{
-  users = list;
+function showChat(){
+  authScreen.style.display = 'none';
+  appScreen.style.display = 'flex';
   renderUsers();
-});
+  selectChat('Общий чат');
+  if(currentUser==='KA7'){
+    renderAdminPanel();
+    viewChatsBtn.style.display='inline-block';
+  } else {
+    writeAdminBtn.style.display='inline-block';
+  }
+}
 
-// Получаем новые сообщения
-socket.on('newMessage', msg=>{
-  messages.push(msg);
-  if((msg.to==='ALL' && selectedChat==='Общий чат') || msg.from===selectedChat || msg.to===selectedChat || (currentUser==='KA7')) renderMessages();
-});
+if(currentUser) showChat();
 
-// Рендер пользователей
+loginBtn.addEventListener('click', login);
+document.addEventListener('keydown', e=>{if(e.key==='Enter'){if(authScreen.style.display==='flex') login(); else sendMessage();}});
+
+createGroupBtn.addEventListener('click', ()=>{alert('Еще в разработке');});
+writeAdminBtn.addEventListener('click', ()=>selectChat('KA7'));
+sendBtn.addEventListener('click', sendMessage);
+
 function renderUsers(){
   usersList.innerHTML='';
   users.filter(u=>u!==currentUser).forEach(u=>{
@@ -159,17 +141,18 @@ function renderUsers(){
   });
 }
 
-// Рендер сообщений
+function selectChat(name){
+  selectedChat = name;
+  chatTitle.textContent = name;
+  renderMessages();
+}
+
 function renderMessages(){
   messagesDiv.innerHTML='';
   let filtered = messages.filter(m=>{
-    if(currentUser==='KA7'){
-      if(selectedChat==='Общий чат') return m.to==='ALL';
-      return m.from===selectedChat || m.to===selectedChat;
-    } else {
-      if(selectedChat==='Общий чат') return m.to==='ALL';
-      return (m.from===currentUser && m.to===selectedChat)||(m.from===selectedChat && m.to===currentUser);
-    }
+    if(selectedChat==='Общий чат') return m.to==='ALL';
+    if(currentUser==='KA7') return m.from===selectedChat || m.to===selectedChat;
+    return (m.from===currentUser && m.to===selectedChat)||(m.from===selectedChat && m.to===currentUser);
   });
   filtered.forEach(m=>{
     const div = document.createElement('div');
@@ -180,17 +163,20 @@ function renderMessages(){
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// Выбор чата
-function selectChat(name){
-  selectedChat = name;
-  chatTitle.textContent = name;
+function sendMessage(){
+  const text = messageInput.value.trim();
+  if(!text) return;
+  const to = (selectedChat==='Общий чат')?'ALL':selectedChat;
+  messages.push({from:currentUser,to,text,time:Date.now()});
+  saveAll();
+  messageInput.value='';
   renderMessages();
 }
 
-// Панель админа
+// Админская панель
 function renderAdminPanel(){
   adminPanel.innerHTML='<div style="font-weight:700;margin-bottom:6px;">Выберите чат пользователя:</div>';
-  users.filter(u=>'KA7'!==u).forEach(u=>{
+  users.filter(u=>u!=='KA7').forEach(u=>{
     const btn = document.createElement('button');
     btn.textContent = u;
     btn.style.marginBottom='4px';
