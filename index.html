@@ -2,15 +2,13 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>8Ч Класс — Мини мессенджер</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>8Ч Класс - Онлайн чат</title>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <style>
   body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);height:100vh;display:flex;justify-content:center;align-items:center;}
   .auth-screen{background:white;padding:40px;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.3);text-align:center;display:flex;flex-direction:column;gap:16px;}
   .auth-screen h1{margin:0;font-size:24px;color:#111;}
-  .auth-screen .notice{color:#7a1f1f;font-size:16px;background:#fff3f2;padding:12px;border-radius:8px;border:1px solid rgba(250,215,215,0.6);}
   .auth-screen input{padding:12px;border-radius:10px;border:1px solid #ddd;font-size:14px;outline:none;}
-  .auth-screen input:focus{border-color:#667eea;box-shadow:0 6px 18px rgba(102,126,234,0.18);}
   .auth-screen .btn{padding:10px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;font-weight:600;cursor:pointer;transition:0.2s;}
   .auth-screen .btn:hover{transform:translateY(-2px);}
   .app{display:none;width:92%;max-width:1100px;height:88vh;background:white;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.3);overflow:hidden;display:flex;flex-direction:row;}
@@ -26,34 +24,28 @@
   .composer{display:flex;gap:8px;padding:10px;border-top:1px solid #ddd;}
   .composer input{flex:1;padding:10px;border-radius:10px;border:1px solid #ccc;outline:none;}
   .composer button{padding:10px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;cursor:pointer;}
-  .create-group-btn{padding:8px 12px;border-radius:10px;background:linear-gradient(135deg,#6e4bd3,#536fe8);color:white;border:none;cursor:pointer;margin-left:8px;}
   .admin-btn{padding:8px 12px;border-radius:10px;background:linear-gradient(135deg,#e08b8b,#d94a4a);color:white;border:none;cursor:pointer;margin-left:auto;}
-  .admin-panel{display:none;flex-direction:column;gap:6px;margin-top:10px;}
 </style>
 </head>
 <body>
 <div class="auth-screen" id="authScreen">
   <h1>Добро пожаловать на сайт 8ч класса</h1>
-  <div class="notice">Ваши чаты нифига не конфиденциальны и не безопасны</div>
   <input type="text" id="nameInput" placeholder="Введите своё имя">
-  <button class="btn" id="loginBtn">Авторизоваться</button>
+  <button class="btn" id="loginBtn">Войти</button>
 </div>
 
 <div class="app" id="app">
-  <div class="users-panel" id="usersPanel">
-    <button class="create-group-btn" id="createGroupBtn">Создать группу</button>
+  <div class="users-panel">
     <div class="category">Группы</div>
     <div class="category-item" id="generalGroup">Общий чат</div>
-    <div class="category">Чаты</div>
+    <div class="category">Пользователи</div>
     <div id="usersList"></div>
-    <div class="admin-panel" id="adminPanel"></div>
   </div>
   <div class="chat-panel">
-    <div class="chat-header" id="chatHeader">
+    <div class="chat-header">
       <span id="chatTitle">Выберите чат</span>
       <button class="admin-btn" id="writeAdminBtn">Написать админу</button>
       <button class="admin-btn" id="viewChatsBtn" style="display:none;">Посмотреть чаты</button>
-      <button class="admin-btn" id="exitViewBtn" style="display:none;">Выйти</button>
     </div>
     <div class="messages" id="messages"></div>
     <div class="composer">
@@ -64,13 +56,9 @@
 </div>
 
 <script>
-const LS_USERS = 'users_v1';
-const LS_MSGS = 'messages_v1';
-const LS_CURRENT = 'currentUser_v1';
+const socket = io();
 
-let users = JSON.parse(localStorage.getItem(LS_USERS)) || [];
-let messages = JSON.parse(localStorage.getItem(LS_MSGS)) || [];
-let currentUser = localStorage.getItem(LS_CURRENT) || null;
+let currentUser = localStorage.getItem('currentUser');
 let selectedChat = 'Общий чат';
 
 const authScreen = document.getElementById('authScreen');
@@ -82,99 +70,83 @@ const messagesDiv = document.getElementById('messages');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const chatTitle = document.getElementById('chatTitle');
-const createGroupBtn = document.getElementById('createGroupBtn');
-const adminPanel = document.getElementById('adminPanel');
 const writeAdminBtn = document.getElementById('writeAdminBtn');
 const viewChatsBtn = document.getElementById('viewChatsBtn');
-const exitViewBtn = document.getElementById('exitViewBtn');
+const generalGroup = document.getElementById('generalGroup');
 
-function saveAll() {
-  localStorage.setItem(LS_USERS, JSON.stringify(users));
-  localStorage.setItem(LS_MSGS, JSON.stringify(messages));
-  localStorage.setItem(LS_CURRENT, currentUser);
-}
-
-function login() {
-  const name = nameInput.value.trim();
-  if(!name){ alert('Введите имя!'); return; }
-  if(!users.includes(name)) users.push(name);
-  currentUser = name;
-  saveAll();
-  authScreen.style.display='none';
-  appScreen.style.display='flex';
-  renderUsers();
-  selectChat('Общий чат');
-  if(currentUser==='KA7'){ viewChatsBtn.style.display='inline-block'; renderAdminPanel(); } 
-  else { writeAdminBtn.style.display='inline-block'; }
-}
-
-loginBtn.addEventListener('click', login);
-document.addEventListener('keydown', e=>{ if(e.key==='Enter'){ if(authScreen.style.display==='flex') login(); else sendMessage(); }});
-
-createGroupBtn.addEventListener('click', ()=>alert('Еще в разработке'));
-writeAdminBtn.addEventListener('click', ()=>selectChat('KA7'));
-viewChatsBtn.addEventListener('click', ()=>{ adminPanel.style.display='flex'; exitViewBtn.style.display='inline-block'; });
-exitViewBtn.addEventListener('click', ()=>{ adminPanel.style.display='none'; exitViewBtn.style.display='none'; selectChat('Общий чат'); });
-
-function renderUsers() {
-  usersList.innerHTML='';
+function renderUsers(users){
+  usersList.innerHTML = '';
   users.forEach(u=>{
-    if(u!==currentUser){
-      const div = document.createElement('div');
-      div.className='category-item';
-      div.textContent = u;
-      div.addEventListener('click', ()=>selectChat(u));
-      usersList.appendChild(div);
-    }
-  });
-}
-
-function renderAdminPanel() {
-  adminPanel.innerHTML='<div style="font-weight:700;margin-bottom:6px;">Выберите пользователя:</div>';
-  users.filter(u=>u!=='KA7').forEach(u=>{
-    const btn = document.createElement('button');
-    btn.textContent = u;
-    btn.style.marginBottom='4px';
-    btn.addEventListener('click', ()=>selectChat(u));
-    adminPanel.appendChild(btn);
-  });
-}
-
-function selectChat(name) {
-  selectedChat = name;
-  chatTitle.textContent = name;
-  renderMessages();
-}
-
-function renderMessages() {
-  messagesDiv.innerHTML='';
-  let filtered;
-  if(selectedChat==='Общий чат') filtered = messages.filter(m=>m.to==='ALL');
-  else if(currentUser==='KA7') filtered = messages.filter(m=>m.to===selectedChat || m.from===selectedChat);
-  else filtered = messages.filter(m=> (m.from===currentUser && m.to===selectedChat) || (m.from===selectedChat && m.to===currentUser) );
-  
-  filtered.forEach(m=>{
+    if(u===currentUser) return;
     const div = document.createElement('div');
-    div.className='msg '+(m.from===currentUser?'me':'');
-    div.textContent = m.from+': '+m.text;
-    messagesDiv.appendChild(div);
+    div.className = 'category-item';
+    div.textContent = u;
+    div.onclick = ()=>selectChat(u);
+    usersList.appendChild(div);
+  });
+}
+
+function selectChat(chat){
+  selectedChat = chat;
+  chatTitle.textContent = chat;
+  socket.emit('getMessages'); // просто триггер для обновления
+}
+
+function renderMessages(msgs){
+  messagesDiv.innerHTML='';
+  msgs.forEach(m=>{
+    if(selectedChat==='Общий чат' && m.to==='ALL' || m.from===selectedChat || m.to===selectedChat || (currentUser==='KA7')){
+      const div = document.createElement('div');
+      div.className = 'msg '+(m.from===currentUser?'me':'');
+      div.textContent = m.from+': '+m.text;
+      messagesDiv.appendChild(div);
+    }
   });
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-function sendMessage() {
+// --- События ---
+loginBtn.onclick = ()=>{
+  const name = nameInput.value.trim();
+  if(!name) return alert('Введите имя!');
+  socket.emit('login', name, (res)=>{
+    if(!res.success) return alert(res.msg);
+    currentUser = name;
+    localStorage.setItem('currentUser', currentUser);
+    authScreen.style.display='none';
+    appScreen.style.display='flex';
+    renderUsers(res.users);
+    renderMessages(res.messages);
+    if(currentUser==='KA7') viewChatsBtn.style.display='inline-block';
+    else writeAdminBtn.style.display='inline-block';
+  });
+};
+
+generalGroup.onclick = ()=>selectChat('Общий чат');
+sendBtn.onclick = ()=>{
   const text = messageInput.value.trim();
   if(!text) return;
-  const to = selectedChat==='Общий чат' ? 'ALL' : selectedChat;
-  messages.push({from:currentUser, to, text, time:Date.now()});
-  saveAll();
+  socket.emit('sendMessage', {from: currentUser, to: selectedChat==='Общий чат'?'ALL':selectedChat, text});
   messageInput.value='';
-  renderMessages();
-}
+};
 
-sendBtn.addEventListener('click', sendMessage);
+writeAdminBtn.onclick = ()=>{
+  selectedChat='KA7';
+  chatTitle.textContent='Админ KA7';
+};
 
-if(currentUser){ authScreen.style.display='none'; appScreen.style.display='flex'; renderUsers(); selectChat('Общий чат'); if(currentUser==='KA7'){ viewChatsBtn.style.display='inline-block'; renderAdminPanel(); } else { writeAdminBtn.style.display='inline-block'; } }
-</script>
-</body>
-</html>
+socket.on('updateUsers', (users)=> renderUsers(users));
+socket.on('newMessage', (msg)=> renderMessages([msg]));
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter') sendBtn.onclick();
+});
+
+// Если авторизован
+if(currentUser){
+  socket.emit('login', currentUser, (res)=>{
+    authScreen.style.display='none';
+    appScreen.style.display='flex';
+    renderUsers(res.users);
+    renderMessages(res.messages);
+ 
