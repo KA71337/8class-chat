@@ -63,15 +63,14 @@
   </div>
 </div>
 
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
-const LS_USERS = 'm_users_v3';
-const LS_MSGS = 'm_messages_v3';
-const LS_CURRENT = 'm_current_v3';
-let users = JSON.parse(localStorage.getItem(LS_USERS)) || [];
-let messages = JSON.parse(localStorage.getItem(LS_MSGS)) || [];
-let currentUser = localStorage.getItem(LS_CURRENT) || null;
+const socket = io('https://my-chat.fly.dev'); // <-- сюда вставь URL твоего сервера
+
+let currentUser = null;
 let selectedChat = 'Общий чат';
 
+// DOM элементы
 const authScreen = document.getElementById('authScreen');
 const appScreen = document.getElementById('app');
 const loginBtn = document.getElementById('loginBtn');
@@ -80,86 +79,67 @@ const usersList = document.getElementById('usersList');
 const messagesDiv = document.getElementById('messages');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
-const chatHeader = document.getElementById('chatHeader');
 const chatTitle = document.getElementById('chatTitle');
 const createGroupBtn = document.getElementById('createGroupBtn');
 const adminPanel = document.getElementById('adminPanel');
 const writeAdminBtn = document.getElementById('writeAdminBtn');
 const viewChatsBtn = document.getElementById('viewChatsBtn');
 
-function saveAll(){
-  localStorage.setItem(LS_USERS, JSON.stringify(users));
-  localStorage.setItem(LS_MSGS, JSON.stringify(messages));
-  localStorage.setItem(LS_CURRENT, currentUser);
-}
-
-function login(){
+// Авторизация
+loginBtn.addEventListener('click', () => {
   const name = nameInput.value.trim();
   if(!name){alert('Введите имя!'); return;}
-  if(users.includes(name)){alert('Имя занято'); return;}
-  users.push(name);
   currentUser = name;
-  saveAll();
-  authScreen.style.display='none';
-  appScreen.style.display='flex';
-  renderUsers();
-  selectChat('Общий чат');
-  if(currentUser==='KA7'){ 
-    renderAdminPanel();
-    viewChatsBtn.style.display='inline-block';
-  } else {
-    writeAdminBtn.style.display='inline-block';
-  }
-}
 
-loginBtn.addEventListener('click', login);
-document.addEventListener('keydown', e=>{
-  if(e.key==='Enter'){
-    if(authScreen.style.display==='flex') login(); else sendMessage();
-  }
-});
+  socket.emit('login', name, response => {
+    if(!response.success){ alert('Имя занято!'); return; }
 
-createGroupBtn.addEventListener('click', ()=>{
-  alert('Еще в разработке');
-});
+    authScreen.style.display='none';
+    appScreen.style.display='flex';
+    renderUsersList();
 
-writeAdminBtn.addEventListener('click', ()=>{
-  selectChat('KA7');
-});
+    selectChat('Общий чат');
 
-viewChatsBtn.addEventListener('click', ()=>{
-  adminPanel.style.display = adminPanel.style.display==='flex' ? 'none':'flex';
-});
-
-function renderUsers(){
-  usersList.innerHTML='';
-  users.filter(u=>u!==currentUser).forEach(u=>{
-    const div = document.createElement('div');
-    div.className='category-item';
-    div.textContent = u;
-    div.addEventListener('click', ()=>selectChat(u));
-    usersList.appendChild(div);
+    if(currentUser==='KA7'){
+      renderAdminPanel();
+      viewChatsBtn.style.display='inline-block';
+    } else {
+      writeAdminBtn.style.display='inline-block';
+    }
   });
+});
+
+// Получаем онлайн пользователей
+socket.on('users', list => {
+  renderUsersList(list);
+});
+
+// Получаем новые сообщения
+socket.on('newMessage', msg => {
+  if(selectedChat==='Общий чат' && msg.to==='ALL') renderMessages([msg]);
+  else if(msg.from===selectedChat || msg.to===selectedChat || currentUser==='KA7') renderMessages([msg]);
+});
+
+// Отправка сообщения
+sendBtn.addEventListener('click', sendMessage);
+messageInput.addEventListener('keydown', e => { if(e.key==='Enter') sendMessage(); });
+
+function sendMessage(){
+  const text = messageInput.value.trim();
+  if(!text) return;
+
+  const to = (selectedChat==='Общий чат')?'ALL':selectedChat;
+
+  const msg = { from:currentUser, to, text, time:Date.now() };
+  socket.emit('sendMessage', msg);
+
+  renderMessages([msg]);
+  messageInput.value='';
 }
 
-function selectChat(name){
-  selectedChat = name;
-  chatTitle.textContent = name;
-  renderMessages();
-}
-
-function renderMessages(){
-  messagesDiv.innerHTML='';
-  let filtered;
-  if(currentUser==='KA7'){ 
-    filtered = messages.filter(m=> (selectedChat==='Общий чат' ? m.to==='ALL' : m.from===selectedChat || m.to===selectedChat));
-  } else {
-    filtered = messages.filter(m=>{
-      if(selectedChat==='Общий чат') return m.to==='ALL';
-      return (m.from===currentUser && m.to===selectedChat)||(m.from===selectedChat && m.to===currentUser);
-    });
-  }
-  filtered.forEach(m=>{
+// Вывод сообщений
+function renderMessages(msgs){
+  msgs.forEach(m=>{
     const div = document.createElement('div');
     div.className='msg '+(m.from===currentUser?'me':'');
     div.textContent = m.from+': '+m.text;
@@ -168,40 +148,44 @@ function renderMessages(){
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-function sendMessage(){
-  const text = messageInput.value.trim();
-  if(!text) return;
-  const to = (selectedChat==='Общий чат')?'ALL':selectedChat;
-  messages.push({from:currentUser,to,text,time:Date.now()});
-  saveAll();
-  messageInput.value='';
-  renderMessages();
-}
-
-sendBtn.addEventListener('click', sendMessage);
-
-function renderAdminPanel(){
-  adminPanel.innerHTML='<div style="font-weight:700;margin-bottom:6px;">Выберите чат пользователя:</div>';
-  users.filter(u=>u!=='KA7').forEach(u=>{
-    const btn = document.createElement('button');
-    btn.textContent = u;
-    btn.style.marginBottom='4px';
-    btn.addEventListener('click', ()=>selectChat(u));
-    adminPanel.appendChild(btn);
+// Список пользователей
+function renderUsersList(list=[]) {
+  usersList.innerHTML='';
+  list.filter(u=>u!==currentUser).forEach(u=>{
+    const div = document.createElement('div');
+    div.textContent = u;
+    div.className='category-item';
+    div.onclick = ()=>selectChat(u);
+    usersList.appendChild(div);
   });
 }
 
-if(currentUser){
-  authScreen.style.display='none';
-  appScreen.style.display='flex';
-  renderUsers();
-  selectChat('Общий чат');
-  if(currentUser==='KA7'){
-    renderAdminPanel();
-    viewChatsBtn.style.display='inline-block';
-  } else {
-    writeAdminBtn.style.display='inline-block';
-  }
+// Выбор чата
+function selectChat(name){
+  selectedChat = name;
+  chatTitle.textContent = name;
+  messagesDiv.innerHTML='';
+}
+
+// Кнопка написать админу
+writeAdminBtn.addEventListener('click', ()=>selectChat('KA7'));
+
+// Кнопка создать группу
+createGroupBtn.addEventListener('click', ()=>alert('Еще в разработке'));
+
+// Панель администратора KA7
+function renderAdminPanel(){
+  adminPanel.innerHTML='<div style="font-weight:700;margin-bottom:6px;">Выберите чат пользователя:</div>';
+  socket.emit('requestUsers'); // запрос всех пользователей
+  socket.on('users', list=>{
+    list.filter(u=>u!=='KA7').forEach(u=>{
+      const btn = document.createElement('button');
+      btn.textContent = u;
+      btn.style.marginBottom='4px';
+      btn.onclick = ()=>selectChat(u);
+      adminPanel.appendChild(btn);
+    });
+  });
 }
 </script>
 </body>
