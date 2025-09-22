@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>8Ч Класс — Мини мессенджер</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  body{margin:0;font-family:Inter,Arial,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);height:100vh;display:flex;justify-content:center;align-items:center;}
+  .auth-screen{background:white;padding:40px;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.3);text-align:center;display:flex;flex-direction:column;gap:16px;}
+  .auth-screen h1{margin:0;font-size:24px;color:#111;}
+  .auth-screen .notice{color:#7a1f1f;font-size:16px;background:#fff3f2;padding:12px;border-radius:8px;border:1px solid rgba(250,215,215,0.6);}
+  .auth-screen input{padding:12px;border-radius:10px;border:1px solid #ddd;font-size:14px;outline:none;}
+  .auth-screen input:focus{border-color:#667eea;box-shadow:0 6px 18px rgba(102,126,234,0.18);}
+  .auth-screen .btn{padding:10px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;font-weight:600;cursor:pointer;transition:0.2s;}
+  .auth-screen .btn:hover{transform:translateY(-2px);}
+  .app{display:none;width:92%;max-width:1100px;height:88vh;background:white;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.3);overflow:hidden;display:flex;flex-direction:row;}
+  .users-panel{width:260px;background:#f7f8ff;border-right:1px solid #ddd;display:flex;flex-direction:column;padding:16px;}
+  .category{font-weight:700;margin-top:10px;margin-bottom:6px;color:#333;}
+  .category-item{padding:6px 8px;color:#555;font-size:14px;cursor:pointer;transition:0.15s;}
+  .category-item:hover{background:rgba(102,126,234,0.08);border-radius:6px;}
+  .chat-panel{flex:1;display:flex;flex-direction:column;}
+  .chat-header{height:60px;display:flex;align-items:center;padding:0 16px;border-bottom:1px solid #ddd;font-weight:700;justify-content:space-between;}
+  .messages{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:8px;}
+  .msg{max-width:70%;padding:10px 14px;border-radius:12px;background:#eef2ff;align-self:flex-start;}
+  .msg.me{align-self:flex-end;background:linear-gradient(90deg,#667eea,#764ba2);color:white;}
+  .composer{display:flex;gap:8px;padding:10px;border-top:1px solid #ddd;}
+  .composer input{flex:1;padding:10px;border-radius:10px;border:1px solid #ccc;outline:none;}
+  .composer button{padding:10px 16px;border:none;border-radius:10px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;cursor:pointer;}
+  .create-group-btn{padding:8px 12px;border-radius:10px;background:linear-gradient(135deg,#6e4bd3,#536fe8);color:white;border:none;cursor:pointer;margin-left:8px;}
+  .admin-btn{padding:8px 12px;border-radius:10px;background:linear-gradient(135deg,#e08b8b,#d94a4a);color:white;border:none;cursor:pointer;margin-left:auto;}
+  .admin-panel{display:none;flex-direction:column;gap:6px;margin-top:10px;}
+</style>
+</head>
+<body>
+
+<div class="auth-screen" id="authScreen">
+  <h1>Добро пожаловать на сайт 8ч класса</h1>
+  <div class="notice">Ваши чаты нифига не конфиденциальны и не безопасны</div>
+  <input type="text" id="nameInput" placeholder="Введите своё имя (не Gmail)">
+  <button class="btn" id="loginBtn">Войти</button>
+</div>
+
+<div class="app" id="app">
+  <div class="users-panel" id="usersPanel">
+    <button class="create-group-btn" id="createGroupBtn">Создать группу</button>
+    <div class="category">Группы</div>
+    <div class="category-item" id="generalGroup">Общий чат</div>
+    <div class="category">Чаты</div>
+    <div id="usersList"></div>
+    <div class="admin-panel" id="adminPanel"></div>
+  </div>
+  <div class="chat-panel">
+    <div class="chat-header" id="chatHeader">
+      <span id="chatTitle">Выберите пользователя или группу</span>
+      <button class="admin-btn" id="writeAdminBtn">Написать админу</button>
+      <button class="admin-btn" id="viewChatsBtn" style="display:none;">Посмотреть чаты</button>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="composer">
+      <input type="text" id="messageInput" placeholder="Введите сообщение">
+      <button id="sendBtn">Отправить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const LS_USERS = 'm_users_v3';
+const LS_MSGS = 'm_messages_v3';
+const LS_CURRENT = 'm_current_v3';
+let users = JSON.parse(localStorage.getItem(LS_USERS)) || [];
+let messages = JSON.parse(localStorage.getItem(LS_MSGS)) || [];
+let currentUser = localStorage.getItem(LS_CURRENT) || null;
+let selectedChat = 'Общий чат';
+
+const authScreen = document.getElementById('authScreen');
+const appScreen = document.getElementById('app');
+const loginBtn = document.getElementById('loginBtn');
+const nameInput = document.getElementById('nameInput');
+const usersList = document.getElementById('usersList');
+const messagesDiv = document.getElementById('messages');
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const chatHeader = document.getElementById('chatHeader');
+const chatTitle = document.getElementById('chatTitle');
+const createGroupBtn = document.getElementById('createGroupBtn');
+const adminPanel = document.getElementById('adminPanel');
+const writeAdminBtn = document.getElementById('writeAdminBtn');
+const viewChatsBtn = document.getElementById('viewChatsBtn');
+
+function saveAll(){
+  localStorage.setItem(LS_USERS, JSON.stringify(users));
+  localStorage.setItem(LS_MSGS, JSON.stringify(messages));
+  localStorage.setItem(LS_CURRENT, currentUser);
+}
+
+function login(){
+  const name = nameInput.value.trim();
+  if(!name){alert('Введите имя!'); return;}
+  if(users.includes(name)){alert('Имя занято'); return;}
+  users.push(name);
+  currentUser = name;
+  saveAll();
+  authScreen.style.display='none';
+  appScreen.style.display='flex';
+  renderUsers();
+  selectChat('Общий чат');
+  if(currentUser==='KA7'){ 
+    renderAdminPanel();
+    viewChatsBtn.style.display='inline-block';
+  } else {
+    writeAdminBtn.style.display='inline-block';
+  }
+}
+
+loginBtn.addEventListener('click', login);
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    if(authScreen.style.display==='flex') login(); else sendMessage();
+  }
+});
+
+createGroupBtn.addEventListener('click', ()=>{
+  alert('Еще в разработке');
+});
+
+writeAdminBtn.addEventListener('click', ()=>{
+  selectChat('KA7');
+});
+
+viewChatsBtn.addEventListener('click', ()=>{
+  adminPanel.style.display = adminPanel.style.display==='flex' ? 'none':'flex';
+});
+
+function renderUsers(){
+  usersList.innerHTML='';
+  users.filter(u=>u!==currentUser).forEach(u=>{
+    const div = document.createElement('div');
+    div.className='category-item';
+    div.textContent = u;
+    div.addEventListener('click', ()=>selectChat(u));
+    usersList.appendChild(div);
+  });
+}
+
+function selectChat(name){
+  selectedChat = name;
+  chatTitle.textContent = name;
+  renderMessages();
+}
+
+function renderMessages(){
+  messagesDiv.innerHTML='';
+  let filtered;
+  if(currentUser==='KA7'){ 
+    filtered = messages.filter(m=> (selectedChat==='Общий чат' ? m.to==='ALL' : m.from===selectedChat || m.to===selectedChat));
+  } else {
+    filtered = messages.filter(m=>{
+      if(selectedChat==='Общий чат') return m.to==='ALL';
+      return (m.from===currentUser && m.to===selectedChat)||(m.from===selectedChat && m.to===currentUser);
+    });
+  }
+  filtered.forEach(m=>{
+    const div = document.createElement('div');
+    div.className='msg '+(m.from===currentUser?'me':'');
+    div.textContent = m.from+': '+m.text;
+    messagesDiv.appendChild(div);
+  });
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function sendMessage(){
+  const text = messageInput.value.trim();
+  if(!text) return;
+  const to = (selectedChat==='Общий чат')?'ALL':selectedChat;
+  messages.push({from:currentUser,to,text,time:Date.now()});
+  saveAll();
+  messageInput.value='';
+  renderMessages();
+}
+
+sendBtn.addEventListener('click', sendMessage);
+
+function renderAdminPanel(){
+  adminPanel.innerHTML='<div style="font-weight:700;margin-bottom:6px;">Выберите чат пользователя:</div>';
+  users.filter(u=>u!=='KA7').forEach(u=>{
+    const btn = document.createElement('button');
+    btn.textContent = u;
+    btn.style.marginBottom='4px';
+    btn.addEventListener('click', ()=>selectChat(u));
+    adminPanel.appendChild(btn);
+  });
+}
+
+if(currentUser){
+  authScreen.style.display='none';
+  appScreen.style.display='flex';
+  renderUsers();
+  selectChat('Общий чат');
+  if(currentUser==='KA7'){
+    renderAdminPanel();
+    viewChatsBtn.style.display='inline-block';
+  } else {
+    writeAdminBtn.style.display='inline-block';
+  }
+}
+</script>
+</body>
+</html>
