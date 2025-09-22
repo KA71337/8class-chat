@@ -203,6 +203,30 @@ if(currentUser){
     writeAdminBtn.style.display='inline-block';
   }
 }
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+const socket = io('https://my-chat.fly.dev'); // URL твоего сервера
+
+// Логин
+socket.emit('login', 'Имя_пользователя', response => {
+  if(response.success) console.log('Успешный вход');
+  else alert('Имя занято');
+});
+
+// Отправка сообщения
+function sendMessage(text, to){
+  socket.emit('sendMessage', { from:'Имя_пользователя', to, text, time:Date.now() });
+}
+
+// Получение всех сообщений
+socket.on('newMessage', msg => {
+  console.log(msg); // тут можно обновлять чат на странице
+});
+
+// Получение списка пользователей
+socket.on('users', list => {
+  console.log(list); // тут можно обновлять список пользователей в левом меню
+});
 </script>
 </body>
 </html>
