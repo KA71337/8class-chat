@@ -56,10 +56,11 @@
 </div>
 
 <script>
-const socket = io();
+const socket = io('https://chat-server-patient-surf-931.fly.dev');
 
 let currentUser = localStorage.getItem('currentUser');
 let selectedChat = 'Общий чат';
+let users = [];
 
 const authScreen = document.getElementById('authScreen');
 const appScreen = document.getElementById('app');
@@ -74,79 +75,92 @@ const writeAdminBtn = document.getElementById('writeAdminBtn');
 const viewChatsBtn = document.getElementById('viewChatsBtn');
 const generalGroup = document.getElementById('generalGroup');
 
-function renderUsers(users){
+function renderUsers(list){
   usersList.innerHTML = '';
-  users.forEach(u=>{
+  list.forEach(u=>{
     if(u===currentUser) return;
     const div = document.createElement('div');
-    div.className = 'category-item';
-    div.textContent = u;
-    div.onclick = ()=>selectChat(u);
+    div.className='category-item';
+    div.textContent=u;
+    div.onclick=()=>selectChat(u);
     usersList.appendChild(div);
   });
 }
 
 function selectChat(chat){
-  selectedChat = chat;
-  chatTitle.textContent = chat;
-  socket.emit('getMessages'); // просто триггер для обновления
+  selectedChat=chat;
+  chatTitle.textContent=chat;
+  renderMessages();
 }
 
-function renderMessages(msgs){
+function renderMessages(){
   messagesDiv.innerHTML='';
-  msgs.forEach(m=>{
+  if(!window.chatMessages) return;
+  window.chatMessages.forEach(m=>{
     if(selectedChat==='Общий чат' && m.to==='ALL' || m.from===selectedChat || m.to===selectedChat || (currentUser==='KA7')){
-      const div = document.createElement('div');
-      div.className = 'msg '+(m.from===currentUser?'me':'');
-      div.textContent = m.from+': '+m.text;
+      const div=document.createElement('div');
+      div.className='msg '+(m.from===currentUser?'me':'');
+      div.textContent=m.from+': '+m.text;
       messagesDiv.appendChild(div);
     }
   });
-  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  messagesDiv.scrollTop=messagesDiv.scrollHeight;
 }
 
-// --- События ---
-loginBtn.onclick = ()=>{
-  const name = nameInput.value.trim();
+loginBtn.onclick=()=>{
+  const name=nameInput.value.trim();
   if(!name) return alert('Введите имя!');
   socket.emit('login', name, (res)=>{
     if(!res.success) return alert(res.msg);
-    currentUser = name;
+    currentUser=name;
     localStorage.setItem('currentUser', currentUser);
+    users=res.users;
+    window.chatMessages=res.messages;
     authScreen.style.display='none';
     appScreen.style.display='flex';
-    renderUsers(res.users);
-    renderMessages(res.messages);
+    renderUsers(users);
+    renderMessages();
     if(currentUser==='KA7') viewChatsBtn.style.display='inline-block';
     else writeAdminBtn.style.display='inline-block';
   });
 };
 
-generalGroup.onclick = ()=>selectChat('Общий чат');
-sendBtn.onclick = ()=>{
-  const text = messageInput.value.trim();
+generalGroup.onclick=()=>selectChat('Общий чат');
+sendBtn.onclick=()=>{
+  const text=messageInput.value.trim();
   if(!text) return;
-  socket.emit('sendMessage', {from: currentUser, to: selectedChat==='Общий чат'?'ALL':selectedChat, text});
+  socket.emit('sendMessage',{from:currentUser,to:selectedChat==='Общий чат'?'ALL':selectedChat,text});
   messageInput.value='';
 };
 
-writeAdminBtn.onclick = ()=>{
-  selectedChat='KA7';
-  chatTitle.textContent='Админ KA7';
-};
+writeAdminBtn.onclick=()=>selectChat('KA7');
 
-socket.on('updateUsers', (users)=> renderUsers(users));
-socket.on('newMessage', (msg)=> renderMessages([msg]));
-
-document.addEventListener('keydown', e=>{
-  if(e.key==='Enter') sendBtn.onclick();
+socket.on('updateUsers',list=>{
+  users=list;
+  renderUsers(users);
 });
 
-// Если авторизован
+socket.on('newMessage',msg=>{
+  if(!window.chatMessages) window.chatMessages=[];
+  window.chatMessages.push(msg);
+  renderMessages();
+});
+
+// Если уже авторизован
 if(currentUser){
-  socket.emit('login', currentUser, (res)=>{
+  socket.emit('login',currentUser,(res)=>{
+    users=res.users;
+    window.chatMessages=res.messages;
     authScreen.style.display='none';
     appScreen.style.display='flex';
-    renderUsers(res.users);
-    renderMessages(res.messages);
- 
+    renderUsers(users);
+    renderMessages();
+  });
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter') sendBtn.onclick();
+});
+</script>
+</body>
+</html>
