@@ -189,6 +189,7 @@ input:focus {
     <div class="admin-btns">
       <button class="btn" id="writeAdminBtn" onclick="writeAdmin()">Написать админу</button>
       <button class="btn" id="viewChatsBtn" onclick="toggleAdminPanel()" style="display:none;">Посмотреть чаты</button>
+      <button class="btn" id="exitViewBtn" onclick="exitView()" style="display:none;">Выйти из просмотра</button>
     </div>
 
     <div class="category">Группы</div>
@@ -214,6 +215,7 @@ let currentUser = localStorage.getItem("currentUser");
 let messages = JSON.parse(localStorage.getItem("messages")) || [];
 let users = JSON.parse(localStorage.getItem("users")) || [];
 let selectedUser = "Общий чат";
+let adminViewing = false;
 
 function login() {
   let name = document.getElementById("nameInput").value.trim();
@@ -240,7 +242,7 @@ function sendMessage() {
   let input = document.getElementById("messageInput");
   let text = input.value.trim();
   if (!text) return;
-  let msg = { from: currentUser, to: selectedUser, text };
+  let msg = { from: currentUser, to: selectedUser==="Общий чат"?"ALL":selectedUser, text };
   messages.push(msg);
   localStorage.setItem("messages", JSON.stringify(messages));
   input.value = "";
@@ -251,7 +253,7 @@ function renderMessages() {
   let list = document.getElementById("messageList");
   list.innerHTML = "";
   messages.filter(m => {
-    if(currentUser==="KA7") return selectedUser==="Общий чат" ? m.to==="ALL" || m.from==="ALL" : m.to===selectedUser || m.from===selectedUser;
+    if(adminViewing || currentUser==="KA7") return m.to==="ALL" || m.to===selectedUser || m.from===selectedUser;
     return selectedUser==="Общий чат" ? m.to==="ALL" : (m.from===currentUser && m.to===selectedUser)||(m.from===selectedUser && m.to===currentUser);
   }).forEach(m=>{
     let div = document.createElement("div");
@@ -276,6 +278,8 @@ function renderUsers() {
 
 function selectUser(user) {
   selectedUser = user;
+  adminViewing = false;
+  document.getElementById("exitViewBtn").style.display = "none";
   renderMessages();
 }
 
@@ -286,6 +290,7 @@ function writeAdmin() {
   messages.push(msg);
   localStorage.setItem("messages", JSON.stringify(messages));
   alert("Сообщение админу отправлено!");
+  renderMessages();
 }
 
 function renderAdminPanel() {
@@ -294,7 +299,7 @@ function renderAdminPanel() {
   users.filter(u=>u!=="KA7").forEach(u=>{
     let btn = document.createElement("button");
     btn.innerText = u;
-    btn.onclick = ()=>selectUser(u);
+    btn.onclick = ()=>{ adminView(u); };
     panel.appendChild(btn);
   });
 }
@@ -302,6 +307,20 @@ function renderAdminPanel() {
 function toggleAdminPanel() {
   let panel = document.getElementById("adminPanel");
   panel.style.display = panel.style.display==="flex" ? "none":"flex";
+}
+
+function adminView(user) {
+  selectedUser = user;
+  adminViewing = true;
+  document.getElementById("exitViewBtn").style.display = "inline-block";
+  renderMessages();
+}
+
+function exitView() {
+  selectedUser = "Общий чат";
+  adminViewing = false;
+  document.getElementById("exitViewBtn").style.display = "none";
+  renderMessages();
 }
 
 // Enter отправка
