@@ -96,47 +96,36 @@ function saveAll() {
 
 function login() {
   const name = nameInput.value.trim();
-  if(!name) { alert('Введите имя!'); return; }
-  if(users.includes(name)) { alert('Имя занято'); return; }
-
+  if(!name){ alert('Введите имя!'); return; }
+  if(!users.includes(name)) users.push(name);
   currentUser = name;
-  users.push(name);
   saveAll();
-
   authScreen.style.display='none';
   appScreen.style.display='flex';
   renderUsers();
   selectChat('Общий чат');
-
-  if(currentUser === 'KA7') {
-    viewChatsBtn.style.display='inline-block';
-    renderAdminPanel();
-  } else {
-    writeAdminBtn.style.display='inline-block';
-  }
+  if(currentUser==='KA7'){ viewChatsBtn.style.display='inline-block'; renderAdminPanel(); } 
+  else { writeAdminBtn.style.display='inline-block'; }
 }
 
 loginBtn.addEventListener('click', login);
-document.addEventListener('keydown', e => {
-  if(e.key==='Enter') {
-    if(authScreen.style.display==='flex') login(); else sendMessage();
-  }
-});
+document.addEventListener('keydown', e=>{ if(e.key==='Enter'){ if(authScreen.style.display==='flex') login(); else sendMessage(); }});
 
-createGroupBtn.addEventListener('click', ()=>{ alert('Еще в разработке'); });
-
-writeAdminBtn.addEventListener('click', ()=>{ selectChat('KA7'); });
+createGroupBtn.addEventListener('click', ()=>alert('Еще в разработке'));
+writeAdminBtn.addEventListener('click', ()=>selectChat('KA7'));
 viewChatsBtn.addEventListener('click', ()=>{ adminPanel.style.display='flex'; exitViewBtn.style.display='inline-block'; });
 exitViewBtn.addEventListener('click', ()=>{ adminPanel.style.display='none'; exitViewBtn.style.display='none'; selectChat('Общий чат'); });
 
 function renderUsers() {
   usersList.innerHTML='';
   users.forEach(u=>{
-    const div = document.createElement('div');
-    div.className='category-item';
-    div.textContent = u;
-    div.addEventListener('click', ()=>selectChat(u));
-    usersList.appendChild(div);
+    if(u!==currentUser){
+      const div = document.createElement('div');
+      div.className='category-item';
+      div.textContent = u;
+      div.addEventListener('click', ()=>selectChat(u));
+      usersList.appendChild(div);
+    }
   });
 }
 
@@ -160,11 +149,10 @@ function selectChat(name) {
 function renderMessages() {
   messagesDiv.innerHTML='';
   let filtered;
-  if(currentUser==='KA7') {
-    filtered = messages.filter(m => selectedChat==='Общий чат' ? m.to==='ALL' : m.to===selectedChat || m.from===selectedChat);
-  } else {
-    filtered = messages.filter(m => selectedChat==='Общий чат' ? m.to==='ALL' : (m.to===selectedChat && m.from===currentUser) || (m.from===selectedChat && m.to===currentUser));
-  }
+  if(selectedChat==='Общий чат') filtered = messages.filter(m=>m.to==='ALL');
+  else if(currentUser==='KA7') filtered = messages.filter(m=>m.to===selectedChat || m.from===selectedChat);
+  else filtered = messages.filter(m=> (m.from===currentUser && m.to===selectedChat) || (m.from===selectedChat && m.to===currentUser) );
+  
   filtered.forEach(m=>{
     const div = document.createElement('div');
     div.className='msg '+(m.from===currentUser?'me':'');
@@ -185,7 +173,8 @@ function sendMessage() {
 }
 
 sendBtn.addEventListener('click', sendMessage);
-if(currentUser) { authScreen.style.display='none'; appScreen.style.display='flex'; renderUsers(); selectChat('Общий чат'); if(currentUser==='KA7'){ viewChatsBtn.style.display='inline-block'; renderAdminPanel(); } else { writeAdminBtn.style.display='inline-block'; } }
+
+if(currentUser){ authScreen.style.display='none'; appScreen.style.display='flex'; renderUsers(); selectChat('Общий чат'); if(currentUser==='KA7'){ viewChatsBtn.style.display='inline-block'; renderAdminPanel(); } else { writeAdminBtn.style.display='inline-block'; } }
 </script>
 </body>
 </html>
