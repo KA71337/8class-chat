@@ -168,7 +168,7 @@
 </div>
 
 <div class="chat" id="chat">
-  <button class="btn chats-btn" onclick="showChats()">Посмотреть чаты</button>
+  <button class="btn chats-btn" onclick="currentChat='Общий';renderMessages();">Посмотреть чаты</button>
   <button class="btn admin-btn" onclick="writeAdmin()">Написать админу</button>
   <div class="sidebar" id="userList"></div>
   <div class="messages">
@@ -184,8 +184,8 @@
   const socket = io("http://localhost:3000");
 
   let currentUser = localStorage.getItem("currentUser");
-  let currentChat = "Общий";
-  let allMessages = {}; // {chatName: [messages]}
+  let currentChat = localStorage.getItem("currentChat") || "Общий";
+  let allMessages = JSON.parse(localStorage.getItem("allMessages")) || {};
 
   if (currentUser) {
     showChat();
@@ -228,6 +228,9 @@
   }
 
   function renderMessages() {
+    localStorage.setItem("currentChat", currentChat);
+    localStorage.setItem("allMessages", JSON.stringify(allMessages));
+
     let list = document.getElementById("messageList");
     list.innerHTML = "";
     (allMessages[currentChat] || []).forEach(m => {
@@ -241,13 +244,15 @@
 
   function renderUsers(users) {
     let list = document.getElementById("userList");
-    list.innerHTML = "";
+    list.innerHTML = "<div class='user' onclick=\"currentChat='Общий';renderMessages();\">Общий чат</div>";
     users.forEach(u => {
-      let div = document.createElement("div");
-      div.className = "user";
-      div.innerText = u;
-      div.onclick = () => { currentChat = u; renderMessages(); };
-      list.appendChild(div);
+      if (u !== currentUser) {
+        let div = document.createElement("div");
+        div.className = "user";
+        div.innerText = u;
+        div.onclick = () => { currentChat = u; renderMessages(); };
+        list.appendChild(div);
+      }
     });
   }
 
@@ -259,16 +264,12 @@
     }
   }
 
-  function showChats() {
-    currentChat = "Общий";
-    renderMessages();
-  }
-
   // Слушатели от сервера
   socket.on("newMessage", (msg) => {
     if (!allMessages[msg.chat]) allMessages[msg.chat] = [];
     allMessages[msg.chat].push(msg);
     if (msg.chat === currentChat) renderMessages();
+    localStorage.setItem("allMessages", JSON.stringify(allMessages));
   });
 
   socket.on("users", (users) => {
