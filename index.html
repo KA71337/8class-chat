@@ -125,7 +125,7 @@
 </div>
 
 <script>
-  const socket = io("https://chat-server-patient-surf-931.fly.dev"); // URL сервера Fly.io
+  const socket = io("http://localhost:3000");
   let currentUser = localStorage.getItem("currentUser");
   let selectedChat = "ALL";
   let messages = JSON.parse(localStorage.getItem("messages")) || {};
