@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>8Ч Класс — Мини чат</title>
+  <title>8Ч Класс - Мини Чат</title>
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
     body {
@@ -14,108 +14,164 @@
       align-items: center;
       background: linear-gradient(135deg, #667eea, #764ba2);
     }
+
     .welcome, .chat {
       background: white;
       border-radius: 20px;
       box-shadow: 0 8px 30px rgba(0,0,0,0.3);
       padding: 40px;
+      text-align: center;
       animation: fadeIn 1s ease-in-out;
     }
-    h1 { margin-bottom: 20px; color:#444; }
-    input {
-      width: 80%; padding: 12px; margin-top: 15px;
-      border-radius: 12px; border: 1px solid #ccc;
-      font-size: 16px; outline: none; transition: 0.3s;
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 28px;
+      color: #444;
     }
-    input:focus { border-color: #667eea; box-shadow: 0 0 10px rgba(102,126,234,0.6); }
-    .btn {
-      padding: 12px 20px; margin-top: 20px;
-      border-radius: 12px; border: none;
-      background: linear-gradient(135deg,#667eea,#764ba2);
-      color: white; font-size: 16px; cursor: pointer;
+
+    input {
+      width: 80%;
+      padding: 12px;
+      margin-top: 15px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+      outline: none;
       transition: 0.3s;
     }
+    input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 10px rgba(102, 126, 234, 0.6);
+    }
+
+    .btn {
+      padding: 12px 20px;
+      margin-top: 20px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
     .btn:hover { transform: scale(1.05); }
-    .chat { display: none; width: 90%; height: 85%; flex-direction: row; }
+
+    .chat {
+      display: none;
+      width: 90%;
+      height: 85%;
+      flex-direction: row;
+      position: relative;
+    }
+
     .sidebar {
-      width: 25%; border-right: 2px solid #ddd;
-      background: #f9f9f9; border-radius: 20px 0 0 20px;
-      overflow-y: auto; padding: 15px;
+      width: 25%;
+      border-right: 2px solid #ddd;
+      overflow-y: auto;
+      padding: 15px;
+      background: #f9f9f9;
+      border-radius: 20px 0 0 20px;
     }
+
     .messages {
-      width: 75%; display: flex; flex-direction: column;
-      background: #fff; border-radius: 0 20px 20px 0;
+      width: 75%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background: #fff;
+      border-radius: 0 20px 20px 0;
     }
-    .chat-header {
-      padding: 10px; font-weight: bold; border-bottom: 1px solid #ddd;
-      display: flex; justify-content: space-between; align-items: center;
-    }
+
     .message-list {
-      flex: 1; padding: 15px; overflow-y: auto;
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      text-align: left;
       background: #fafafa;
     }
+
     .message {
-      margin: 8px 0; padding: 10px 14px;
-      border-radius: 15px; background: #e2e2f9;
+      margin: 8px 0;
+      padding: 10px 14px;
+      border-radius: 15px;
+      background: #e2e2f9;
       animation: slideIn 0.3s ease-in-out;
     }
-    .message.me { background: linear-gradient(135deg,#667eea,#764ba2); color: white; text-align:right; }
+
     .input-area {
-      display: flex; border-top: 1px solid #ddd; background: #f1f1f1;
+      display: flex;
+      border-top: 1px solid #ddd;
+      background: #f1f1f1;
+      border-radius: 0 0 20px 0;
     }
     .input-area input {
-      flex: 1; padding: 12px; border: none;
+      flex: 1;
+      padding: 12px;
+      border: none;
       border-radius: 0 0 0 20px;
+      font-size: 16px;
     }
     .input-area button {
-      border: none; background: linear-gradient(135deg,#667eea,#764ba2);
-      color: white; padding: 12px 24px; border-radius: 0 0 20px 0;
+      border: none;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 0 0 20px 0;
       cursor: pointer;
     }
+
+    .admin-btn {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+    }
+
+    .chats-btn {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+    }
+
     .user {
-      padding: 8px; margin: 5px 0;
-      background: #ececff; border-radius: 10px;
-      transition: 0.3s; cursor: pointer;
+      padding: 8px;
+      margin: 5px 0;
+      background: #ececff;
+      border-radius: 10px;
+      transition: 0.3s;
     }
-    .user:hover { background: #d8d8ff; }
-    .category { font-weight: bold; margin: 10px 0 5px; }
-    .admin-controls { margin-top: 10px; display: none; flex-direction: column; gap:5px; }
-    .exit-btn {
-      padding: 5px 10px; border: none;
-      background: #e74c3c; color: white; border-radius: 6px;
+    .user:hover {
+      background: #d8d8ff;
       cursor: pointer;
     }
-    @keyframes fadeIn { from{opacity:0;transform:translateY(-20px);} to{opacity:1;transform:translateY(0);} }
-    @keyframes slideIn { from{opacity:0;transform:translateX(-20px);} to{opacity:1;transform:translateX(0);} }
+
+    @keyframes fadeIn {
+      from {opacity: 0; transform: translateY(-20px);}
+      to {opacity: 1; transform: translateY(0);}
+    }
+
+    @keyframes slideIn {
+      from {opacity: 0; transform: translateX(-20px);}
+      to {opacity: 1; transform: translateX(0);}
+    }
   </style>
 </head>
 <body>
 
 <div class="welcome" id="welcome">
   <h1>Добро пожаловать в чат</h1>
-  <input type="text" id="nameInput" placeholder="Введите имя">
+  <input type="text" id="nameInput" placeholder="Введите своё имя">
   <br>
   <button class="btn" onclick="login()">Авторизоваться</button>
 </div>
 
 <div class="chat" id="chat">
-  <div class="sidebar">
-    <div class="category">Группы</div>
-    <div class="user" onclick="selectChat('ALL')">Общий чат</div>
-    <div class="category">Пользователи</div>
-    <div id="userList"></div>
-
-    <div class="admin-controls" id="adminControls">
-      <button class="btn" onclick="toggleChats()">Посмотреть чаты</button>
-      <div id="adminUsers"></div>
-      <button class="exit-btn" onclick="exitChats()">Выйти</button>
-    </div>
-  </div>
+  <button class="btn chats-btn" onclick="showChats()">Посмотреть чаты</button>
+  <button class="btn admin-btn" onclick="writeAdmin()">Написать админу</button>
+  <div class="sidebar" id="userList"></div>
   <div class="messages">
-    <div class="chat-header">
-      <span id="chatTitle">Общий чат</span>
-      <button class="btn" onclick="writeAdmin()">Написать админу</button>
-    </div>
     <div class="message-list" id="messageList"></div>
     <div class="input-area">
       <input type="text" id="messageInput" placeholder="Введите сообщение...">
@@ -126,103 +182,105 @@
 
 <script>
   const socket = io("http://localhost:3000");
-  let currentUser = localStorage.getItem("currentUser");
-  let selectedChat = "ALL";
-  let messages = JSON.parse(localStorage.getItem("messages")) || {};
 
-  // Если уже авторизован
+  let currentUser = localStorage.getItem("currentUser");
+  let currentChat = "Общий";
+  let allMessages = {}; // {chatName: [messages]}
+
   if (currentUser) {
-    document.getElementById("welcome").style.display = "none";
-    document.getElementById("chat").style.display = "flex";
-    socket.emit("login", currentUser, (res)=>{
-      if(res.success){
-        renderUsers(res.users);
-        renderMessages();
-        if(currentUser==="KA7") document.getElementById("adminControls").style.display="flex";
+    showChat();
+    socket.emit("login", currentUser, (res) => {
+      if (!res.success) {
+        alert("Имя уже занято!");
+        localStorage.removeItem("currentUser");
+        location.reload();
       }
     });
   }
 
-  function login(){
-    const name = document.getElementById("nameInput").value.trim();
-    if(!name) return alert("Введите имя!");
-    socket.emit("login", name, (res)=>{
-      if(!res.success) return alert(res.message);
-      currentUser = name;
-      localStorage.setItem("currentUser", name);
-      document.getElementById("welcome").style.display = "none";
-      document.getElementById("chat").style.display = "flex";
-      renderUsers(res.users);
-      if(currentUser==="KA7") document.getElementById("adminControls").style.display="flex";
+  function login() {
+    let name = document.getElementById("nameInput").value.trim();
+    if (!name) return alert("Введите имя!");
+    socket.emit("login", name, (res) => {
+      if (res.success) {
+        currentUser = name;
+        localStorage.setItem("currentUser", name);
+        showChat();
+      } else {
+        alert(res.message);
+      }
     });
   }
 
-  function sendMessage(){
-    const input = document.getElementById("messageInput");
-    const text = input.value.trim();
-    if(!text) return;
-    socket.emit("sendMessage",{from:currentUser,to:selectedChat,text});
-    input.value="";
-  }
-
-  function renderMessages(){
-    const list=document.getElementById("messageList");
-    list.innerHTML="";
-    const msgs = messages[selectedChat] || [];
-    msgs.forEach(m=>{
-      let div=document.createElement("div");
-      div.className="message"+(m.from===currentUser?" me":"");
-      div.textContent=`${m.from}: ${m.text}`;
-      list.appendChild(div);
-    });
-    list.scrollTop=list.scrollHeight;
-  }
-
-  function renderUsers(userArr){
-    const list=document.getElementById("userList");
-    list.innerHTML="";
-    userArr.filter(u=>u!==currentUser).forEach(u=>{
-      let div=document.createElement("div");
-      div.className="user";
-      div.textContent=u;
-      div.onclick=()=>selectChat(u);
-      list.appendChild(div);
-    });
-  }
-
-  function selectChat(name){
-    selectedChat=name;
-    document.getElementById("chatTitle").textContent=name==="ALL"?"Общий чат":name;
+  function showChat() {
+    document.getElementById("welcome").style.display = "none";
+    document.getElementById("chat").style.display = "flex";
     renderMessages();
   }
 
-  function writeAdmin(){
-    selectChat("KA7");
+  function sendMessage() {
+    let input = document.getElementById("messageInput");
+    let text = input.value.trim();
+    if (!text) return;
+    let msg = { chat: currentChat, user: currentUser, text };
+    socket.emit("sendMessage", msg);
+    input.value = "";
   }
 
-  function toggleChats(){
-    document.getElementById("adminUsers").innerHTML="";
-    socket.emit("getUsers");
+  function renderMessages() {
+    let list = document.getElementById("messageList");
+    list.innerHTML = "";
+    (allMessages[currentChat] || []).forEach(m => {
+      let div = document.createElement("div");
+      div.className = "message";
+      div.innerText = m.user + ": " + m.text;
+      list.appendChild(div);
+    });
+    list.scrollTop = list.scrollHeight;
   }
 
-  function exitChats(){
-    document.getElementById("adminUsers").innerHTML="";
+  function renderUsers(users) {
+    let list = document.getElementById("userList");
+    list.innerHTML = "";
+    users.forEach(u => {
+      let div = document.createElement("div");
+      div.className = "user";
+      div.innerText = u;
+      div.onclick = () => { currentChat = u; renderMessages(); };
+      list.appendChild(div);
+    });
   }
 
-  // SOCKET EVENTS
-  socket.on("newMessage",(msg)=>{
-    if(!messages[msg.to]) messages[msg.to]=[];
-    if(msg.to==="ALL" || msg.to===currentUser || msg.from===currentUser || currentUser==="KA7"){
-      messages[msg.to].push(msg);
-      localStorage.setItem("messages",JSON.stringify(messages));
-      if(selectedChat===msg.to || (msg.to===currentUser && selectedChat===msg.from) || (msg.from===currentUser && selectedChat===msg.to)){
-        renderMessages();
-      }
+  function writeAdmin() {
+    let text = prompt("Введите сообщение админу:");
+    if (text) {
+      let msg = { chat: "KA7", user: currentUser, text };
+      socket.emit("sendMessage", msg);
     }
+  }
+
+  function showChats() {
+    currentChat = "Общий";
+    renderMessages();
+  }
+
+  // Слушатели от сервера
+  socket.on("newMessage", (msg) => {
+    if (!allMessages[msg.chat]) allMessages[msg.chat] = [];
+    allMessages[msg.chat].push(msg);
+    if (msg.chat === currentChat) renderMessages();
   });
 
-  socket.on("users",(list)=>{ renderUsers(list); });
+  socket.on("users", (users) => {
+    renderUsers(users);
+  });
 
+  // Enter для отправки
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Enter" && document.getElementById("chat").style.display === "flex") {
+      sendMessage();
+    }
+  });
 </script>
 </body>
 </html>
